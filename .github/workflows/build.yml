@@ -1,0 +1,151 @@
+name: Multi-Platform Build with libaribb25 and recdvb
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+    
+env:
+  BUILD_TYPE: Release
+  WORKDIR: ${{ github.workspace }}
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+
+      # [Ubuntu] Install dependencies
+      - name: Install dependencies (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ gcc make build-essential autoconf automake libpcsclite-dev pcscd pcsc-tools libccid pkg-config
+
+      # [macOS] Install dependencies
+      - name: Install dependencies (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install cmake gcc make autoconf automake pkg-config pcsc-lite
+
+      # [Ubuntu] Build libaribb25
+      - name: Build libaribb25 (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          cd lib/libaribb25
+          cmake -B build && cd build
+          make && sudo make install
+          mkdir -p $WORKDIR/libaribb25_${{ matrix.os }}
+          cp arib-b1-stream-test arib-b25-stream-test b1 b25 $WORKDIR/libaribb25_${{ matrix.os }}
+          echo "done!"
+
+      # [Ubuntu] Build recdvb
+      - name: Build recdvb (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          cd lib/recdvb
+          git submodule init && git submodule update
+          ./autogen.sh
+          ./configure --enable-b25
+          make && sudo make install
+          mkdir -p $WORKDIR/recdvb_${{ matrix.os }}
+          cp recdvb recpt1ctl chkdvbsignal tssplitter_lite $WORKDIR/recdvb_${{ matrix.os }}
+          echo "done!"
+
+      # [macOS] Build libaribb25
+      - name: Build libaribb25 (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          cd lib/libaribb25
+          cmake -B build && cd build
+          make
+          mkdir -p $WORKDIR/libaribb25_${{ matrix.os }}
+          cp arib-b1-stream-test arib-b25-stream-test b1 b25 $WORKDIR/libaribb25_${{ matrix.os }}
+          echo "done!"
+
+      # [Ubuntu and macOS] Archive and upload libaribb25
+      - name: Archive libaribb25
+        run: |
+          tar -czvf libaribb25_${{ matrix.os }}.tar.gz $WORKDIR/libaribb25_${{ matrix.os }}
+      - name: Upload libaribb25 Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: libaribb25_${{ matrix.os }}
+          path: libaribb25_${{ matrix.os }}.tar.gz
+
+      # [Ubuntu and macOS] Archive and upload recdvb
+      - name: Archive recdvb
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          tar -czvf recdvb_${{ matrix.os }}.tar.gz $WORKDIR/recdvb_${{ matrix.os }}
+      - name: Upload recdvb Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: recdvb_${{ matrix.os }}
+          path: recdvb_${{ matrix.os }}.tar.gz
+
+      # Generate and push a new tag
+      - name: Generate tag
+        if: github.ref == 'refs/heads/main'
+        env:
+         OSTAG: ${{ matrix.os }} 
+        run: |
+          TAG_DATE=$(date +'%Y%m%d')
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          TAG_NAME="v${TAG_DATE}-${SHORT_SHA}-${OSTAG}"
+          echo "TAG_NAME=${TAG_NAME}" >> $GITHUB_ENV
+          git tag $TAG_NAME
+          git push origin $TAG_NAME
+
+      # Create a GitHub Release
+      - name: Create Release
+        id: create_release
+        if: github.ref == 'refs/heads/main'
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.TAG_NAME }}
+          release_name: Release ${{ env.TAG_NAME }}
+          draft: false
+          prerelease: false
+
+      # Download artifacts and upload to release (for both Ubuntu and macOS)
+      - name: Download artifacts for libaribb25
+        uses: actions/download-artifact@v2
+        with:
+          name: libaribb25_${{ matrix.os }}
+      - name: Upload release asset for libaribb25
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./libaribb25_${{ matrix.os }}.tar.gz
+          asset_name: libaribb25_${{ matrix.os }}.tar.gz
+          asset_content_type: application/gzip
+
+      # Download and upload recdvb artifact (for both Ubuntu and macOS)
+      - name: Download artifacts for recdvb
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/download-artifact@v2
+        with:
+          name: recdvb_${{ matrix.os }}
+      - name: Upload release asset for recdvb
+        if: github.ref == 'refs/heads/main' && matrix.os == 'ubuntu-latest'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./recdvb_${{ matrix.os }}.tar.gz
+          asset_name: recdvb_${{ matrix.os }}.tar.gz
+          asset_content_type: application/gzip
