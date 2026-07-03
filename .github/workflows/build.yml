@@ -3,6 +3,7 @@ name: Multi-Platform Build with libaribb25 and recdvb
 on:
   push:
     branches: [ "main" ]
+    tags: [ "v*.*.*" ]
   pull_request:
     branches: [ "main" ]
     
@@ -97,11 +98,9 @@ jobs:
 
   release:
     needs: build
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-
       # Pull every artifact produced by the build matrix into one directory
       - name: Download all artifacts
         uses: actions/download-artifact@v8
@@ -109,23 +108,15 @@ jobs:
           path: artifacts
           merge-multiple: true
 
-      # Generate and push a single tag for this commit
-      - name: Generate tag
-        id: tag
-        run: |
-          TAG_DATE=$(date +'%Y%m%d')
-          SHORT_SHA=$(git rev-parse --short HEAD)
-          TAG_NAME="v${TAG_DATE}-${SHORT_SHA}"
-          echo "TAG_NAME=${TAG_NAME}" >> "$GITHUB_OUTPUT"
-          git tag "$TAG_NAME"
-          git push origin "$TAG_NAME"
-
-      # Create a single GitHub Release with all platform artifacts attached
+      # Create a GitHub Release for the version tag that triggered this run,
+      # with all platform artifacts attached. Tags are pushed manually
+      # (e.g. `git tag v1.0.0 && git push origin v1.0.0`), so no tag is
+      # generated here.
       - name: Create Release
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ steps.tag.outputs.TAG_NAME }}
-          name: Release ${{ steps.tag.outputs.TAG_NAME }}
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
           draft: false
           prerelease: false
           files: artifacts/**
