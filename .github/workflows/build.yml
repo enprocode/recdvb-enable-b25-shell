@@ -102,30 +102,39 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # VERSION の内容がリリースバージョンの唯一の情報源。
+      # そのバージョンのリリースが既に存在する場合は何もしない。
+      - name: Resolve version and check for existing release
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG_NAME="v$(tr -d '[:space:]' < VERSION)"
+          echo "tag_name=${TAG_NAME}" >> "$GITHUB_OUTPUT"
+          if gh release view "$TAG_NAME" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
       # Pull every artifact produced by the build matrix into one directory
       - name: Download all artifacts
+        if: steps.version.outputs.exists == 'false'
         uses: actions/download-artifact@v8
         with:
           path: artifacts
           merge-multiple: true
 
-      # Generate and push a single tag for this commit
-      - name: Generate tag
-        id: tag
-        run: |
-          TAG_DATE=$(date +'%Y%m%d')
-          SHORT_SHA=$(git rev-parse --short HEAD)
-          TAG_NAME="v${TAG_DATE}-${SHORT_SHA}"
-          echo "TAG_NAME=${TAG_NAME}" >> "$GITHUB_OUTPUT"
-          git tag "$TAG_NAME"
-          git push origin "$TAG_NAME"
-
-      # Create a single GitHub Release with all platform artifacts attached
+      # VERSION に対応するリリースがまだ無い場合だけ、GitHub Release
+      # (と対応するタグ)を作成する。VERSION に変更が無いpush
+      # (例: Dependabotによるアクションのバージョン更新)では
+      # 既にリリース済みなのでスキップされ、リリースが増殖しない。
       - name: Create Release
+        if: steps.version.outputs.exists == 'false'
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ steps.tag.outputs.TAG_NAME }}
-          name: Release ${{ steps.tag.outputs.TAG_NAME }}
+          tag_name: ${{ steps.version.outputs.tag_name }}
+          name: Release ${{ steps.version.outputs.tag_name }}
           draft: false
           prerelease: false
           files: artifacts/**
