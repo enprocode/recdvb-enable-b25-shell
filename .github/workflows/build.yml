@@ -78,7 +78,7 @@ jobs:
         run: |
           tar -czvf libaribb25_${{ matrix.os }}.tar.gz $WORKDIR/libaribb25_${{ matrix.os }}
       - name: Upload libaribb25 Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: libaribb25_${{ matrix.os }}
           path: libaribb25_${{ matrix.os }}.tar.gz
@@ -90,7 +90,7 @@ jobs:
           tar -czvf recdvb_${{ matrix.os }}.tar.gz $WORKDIR/recdvb_${{ matrix.os }}
       - name: Upload recdvb Artifact
         if: matrix.os == 'ubuntu-latest'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: recdvb_${{ matrix.os }}
           path: recdvb_${{ matrix.os }}.tar.gz
