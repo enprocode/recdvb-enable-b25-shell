@@ -1,0 +1,24 @@
+queue_rules:
+  - name: default
+    merge_method: squash
+    queue_conditions:
+      - check-success=build (ubuntu-latest)
+      - check-success=build (macos-latest)
+
+pull_request_rules:
+  - name: Dependabotのプルリクエストをキューに追加してマージ
+    conditions:
+      - author=dependabot[bot]
+      - check-success=build (ubuntu-latest)
+      - check-success=build (macos-latest)
+    actions:
+      queue:
+        name: default
+
+  - name: Dependabotのプルリクエストを自動承認
+    conditions:
+      - author=dependabot[bot]
+    actions:
+      review:
+        type: APPROVE
+        message: "Dependabotによる更新のため自動承認しています。"
