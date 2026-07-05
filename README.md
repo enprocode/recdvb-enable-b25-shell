@@ -1,10 +1,10 @@
 # recdvb-enable-b25-shell
 
-[libaribb25](https://github.com/enprocode/libaribb25.git) と [recdvb](https://github.com/enprocode/recdvb.git)（`--enable-b25`付き）をビルド・インストールするためのシェルスクリプト集です。
-
 [![CI](https://img.shields.io/github/actions/workflow/status/enprocode/recdvb-enable-b25-shell/build.yml?branch=main&logo=github&label=CI)](https://github.com/enprocode/recdvb-enable-b25-shell/actions/workflows/build.yml)
 [![release](https://img.shields.io/github/v/release/enprocode/recdvb-enable-b25-shell?label=release)](https://github.com/enprocode/recdvb-enable-b25-shell/releases/latest)
 [![license](https://img.shields.io/github/license/enprocode/recdvb-enable-b25-shell)](LICENSE)
+
+[libaribb25](https://github.com/enprocode/libaribb25.git) と [recdvb](https://github.com/enprocode/recdvb.git)（`--enable-b25`付き）をビルド・インストールするためのシェルスクリプト集です。
 
 ## 概要
 
