@@ -1,6 +1,5 @@
 version: 2
 updates:
-  # GitHub Actions のバージョンを追従
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -9,7 +8,6 @@ updates:
       - "dependencies"
       - "github-actions"
 
-  # lib/libaribb25, lib/recdvb の git submodule を追従
   - package-ecosystem: "gitsubmodule"
     directory: "/"
     schedule:
